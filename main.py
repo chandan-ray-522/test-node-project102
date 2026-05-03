@@ -1,31 +1,72 @@
 import requests
 import os
-import json
-from datetime import datetime
+import time
+import pandas as pd
+from io import StringIO
+from datetime import datetime, timedelta
 
 # GitHub Secrets se data uthana
 WEBAPP_URL = os.environ['GOOGLE_WEBAPP_URL']
 TOKEN = os.environ['SECRET_TOKEN']
 
-def fetch_and_send():
-    # Aaj ki date nikalna (NSE format ke liye)
-    today = datetime.now().strftime("%d%m%Y")
+# --- CONFIGURATION ---
+# MODE: 'DAILY' (rozana automation ke liye) ya 'HISTORICAL' (purana data upload karne ke liye)
+MODE = 'DAILY' 
+# Agar MODE 'HISTORICAL' hai, toh yahan Dates badlein (Format: YYYY-MM-DD)
+START_DATE = "2025-01-01"
+END_DATE = "2025-01-31"
+
+def fetch_and_send(target_date):
+    date_str = target_date.strftime("%d%m%Y")
+    url = f"https://archives.nseindia.com/content/nsccl/fno_participant_vol_{date_str}.csv"
     
-    # Example NSE Archival Link (Isme hum parameters badal sakte hain)
-    # Note: Filhal hum test data bhej rahe hain ye check karne ke liye ki connection sahi hai ya nahi
-    test_data = {
-        "token": TOKEN,
-        "date": datetime.now().strftime("%Y-%m-%d"),
-        "client_type": "FII",
-        "future_long": 12345,
-        "future_short": 6789,
-        "option_long": 55555,
-        "option_short": 44444
+    # ANTI-BOT PROTECTION: Browser jaisa headers
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
     }
 
-    # Google Sheet Web App ko data bhejna
-    response = requests.post(WEBAPP_URL, json=test_data)
-    print(f"Status: {response.text}")
+    try:
+        response = requests.get(url, headers=headers, timeout=15)
+        if response.status_code == 200:
+            df = pd.read_csv(StringIO(response.text))
+            fii_row = df[df.iloc[:, 0].str.strip() == 'FII'].iloc[0]
+            
+            payload = {
+                "token": TOKEN,
+                "date": target_date.strftime("%Y-%m-%d"),
+                "client_type": "FII",
+                "future_long": int(fii_row.iloc[1]),
+                "future_short": int(fii_row.iloc[2]),
+                "option_long": int(fii_row.iloc[3]),
+                "option_short": int(fii_row.iloc[4])
+            }
+            res = requests.post(WEBAPP_URL, json=payload)
+            print(f"Success for {date_str}: {res.text}")
+            return True
+        else:
+            print(f"Data not ready for {date_str} (Status: {response.status_code})")
+            return False
+    except Exception as e:
+        print(f"Error for {date_str}: {e}")
+        return False
+
+def run_automation():
+    if MODE == 'DAILY':
+        # 7:30 PM se 8:30 PM tak RETRY LOGIC (6 attempts, har 10 min mein)
+        for attempt in range(6):
+            success = fetch_and_send(datetime.now())
+            if success: break
+            print("Waiting 10 minutes for next retry...")
+            time.sleep(600) 
+    
+    elif MODE == 'HISTORICAL':
+        # 1-Saal ka bulk data logic
+        curr = datetime.strptime(START_DATE, "%Y-%m-%d")
+        end = datetime.strptime(END_DATE, "%Y-%m-%d")
+        while curr <= end:
+            fetch_and_send(curr)
+            time.sleep(2) # Anti-bot delay (2 sec gap between requests)
+            curr += timedelta(days=1)
 
 if __name__ == "__main__":
-    fetch_and_send()
+    run_automation()
