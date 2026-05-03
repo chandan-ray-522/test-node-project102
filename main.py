@@ -10,11 +10,11 @@ WEBAPP_URL = os.environ['GOOGLE_WEBAPP_URL']
 TOKEN = os.environ['SECRET_TOKEN']
 
 # --- CONFIGURATION ---
-# 'DAILY' = Rozana automation ke liye (7:30 PM trigger)
-# 'HISTORICAL' = Purana data upload karne ke liye (Aap 12 din mein 12 mahine kar sakte hain)
+# 'DAILY' = Rozana automation (7:30 PM trigger)
+# 'HISTORICAL' = Purana data (12 din mein 12 mahine)
 MODE = 'DAILY' 
 
-# Agar MODE 'HISTORICAL' hai, toh yahan Dates badlein (Format: YYYY-MM-DD)
+# Agar MODE 'HISTORICAL' hai, toh yahan Dates badlein (YYYY-MM-DD)
 START_DATE = "2025-01-01"
 END_DATE = "2025-01-31"
 
@@ -31,7 +31,7 @@ def fetch_and_send(target_date):
         response = requests.get(url, headers=headers, timeout=15)
         if response.status_code == 200:
             df = pd.read_csv(StringIO(response.text))
-            # FII row nikalna (Aapke analysis ke liye)
+            # FII row nikalna
             fii_row = df[df.iloc[:, 0].str.strip() == 'FII'].iloc[0]
             
             payload = {
@@ -54,8 +54,14 @@ def fetch_and_send(target_date):
         return False
 
 def run_automation():
+    # DOUBLE SAFETY: Check if today is Saturday (5) or Sunday (6)
+    weekday = datetime.now().weekday()
+    if weekday >= 5:
+        print("Market is Closed (Weekend). Skipping execution to stay safe.")
+        return 
+    
     if MODE == 'DAILY':
-        # 7:30 PM se check shuru karega aur 6 baar koshish karega (Har 10 min mein)
+        # 7:30 PM trigger ke baad 6 baar retry logic
         for attempt in range(6):
             success = fetch_and_send(datetime.now())
             if success: 
@@ -65,12 +71,12 @@ def run_automation():
             time.sleep(600) 
     
     elif MODE == 'HISTORICAL':
-        # Batch Mode: Ek saath poore mahine ka data bhejna
+        # Batch Mode: Purana data upload karne ke liye
         curr = datetime.strptime(START_DATE, "%Y-%m-%d")
         end = datetime.strptime(END_DATE, "%Y-%m-%d")
         while curr <= end:
             fetch_and_send(curr)
-            time.sleep(2) # Anti-bot delay: NSE ko block karne se rokne ke liye
+            time.sleep(2) # Anti-bot delay
             curr += timedelta(days=1)
 
 if __name__ == "__main__":
