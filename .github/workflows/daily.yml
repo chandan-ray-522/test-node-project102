@@ -1,9 +1,7 @@
 name: NSE Data Automation
 
 on:
-  workflow_dispatch: # Manual run ke liye
-  schedule:
-    - cron: '30 13 * * 1-5' # Har Mon-Fri, IST shaam 7:00 baje (UTC 13:30)
+  workflow_dispatch: # Sirf manual aur cron-job.org ke signal par chalega
 
 jobs:
   build:
@@ -18,7 +16,7 @@ jobs:
           python-version: '3.9'
 
       - name: Install dependencies
-        run: pip install requests
+        run: pip install requests pandas
 
       - name: Run Automation
         env:
