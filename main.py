@@ -10,7 +10,7 @@ WEBAPP_URL = os.environ['GOOGLE_WEBAPP_URL']
 TOKEN = os.environ['SECRET_TOKEN']
 
 # --- CONFIGURATION ---
-MODE = 'DAILY' # 'HISTORICAL' bharne ke liye badlein
+MODE = 'HISTORICAL' # 'HISTORICAL' bharne ke liye badlein
 START_DATE = "2026-04-01"
 END_DATE = "2026-04-30"
 
