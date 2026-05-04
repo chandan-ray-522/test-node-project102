@@ -10,89 +10,67 @@ WEBAPP_URL = os.environ['GOOGLE_WEBAPP_URL']
 TOKEN = os.environ['SECRET_TOKEN']
 
 # --- CONFIGURATION ---
-MODE = 'HISTORICAL' # 'HISTORICAL' bharne ke liye badlein
+MODE = 'DAILY' 
 START_DATE = "2026-04-01"
 END_DATE = "2026-04-30"
 
-# --- NSE HOLIDAY LIST 2026 (Strictly as per your image_56.png) ---
-NSE_HOLIDAYS = [
-    "2026-01-15", # Municipal Corporation Election
-    "2026-01-26", # Republic Day
-    "2026-03-03", # Holi
-    "2026-03-26", # Shri Ram Navami
-    "2026-03-31", # Shri Mahavir Jayanti
-    "2026-04-03", # Good Friday
-    "2026-04-14", # Dr. Baba Saheb Ambedkar Jayanti
-    "2026-05-01", # Maharashtra Day
-    "2026-05-28", # Bakri Id
-    "2026-06-26", # Muharram
-    "2026-09-14", # Ganesh Chaturthi
-    "2026-10-02", # Mahatma Gandhi Jayanti
-    "2026-10-20", # Dussehra
-    "2026-11-10", # Diwali-Balipratipada
-    "2026-11-24", # Guru Nanak Jayanti
-    "2026-12-25"  # Christmas
-]
+# NSE Holiday List 2026 (As per your image)
+NSE_HOLIDAYS = ["2026-01-15", "2026-01-26", "2026-03-03", "2026-03-26", "2026-03-31", "2026-04-03", "2026-04-14", "2026-05-01", "2026-05-28", "2026-06-26", "2026-09-14", "2026-10-02", "2026-10-20", "2026-11-10", "2026-11-24", "2026-12-25"]
 
 def fetch_and_send(target_date):
     date_str = target_date.strftime("%d%m%Y")
     url = f"https://nsearchives.nseindia.com/content/nsccl/fao_participant_vol_{date_str}.csv"
     
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-    }
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'}
 
     try:
         response = requests.get(url, headers=headers, timeout=15)
         if response.status_code == 200:
             df = pd.read_csv(StringIO(response.text))
-            fii_row = df[df.iloc[:, 0].str.strip() == 'FII'].iloc[0]
             
+            # Charon participants ki list
+            participants = ['Client', 'DII', 'FII', 'Pro']
+            all_rows_data = []
+
+            for p in participants:
+                # Row find karna aur columns extract karna (Index specific)
+                row = df[df.iloc[:, 0].str.strip() == p].iloc[0]
+                all_rows_data.append({
+                    "client_type": p,
+                    "future_long": int(row.iloc[1]),
+                    "future_short": int(row.iloc[2]),
+                    "opt_call_long": int(row.iloc[5]),
+                    "opt_put_long": int(row.iloc[6]),
+                    "opt_call_short": int(row.iloc[7]),
+                    "opt_put_short": int(row.iloc[8])
+                })
+            
+            # Pura data ek sath bhejna
             payload = {
                 "token": TOKEN,
                 "date": target_date.strftime("%Y-%m-%d"),
-                "client_type": "FII",
-                "future_long": int(fii_row.iloc[1]),
-                "future_short": int(fii_row.iloc[2]),
-                "option_long": int(fii_row.iloc[3]),
-                "option_short": int(fii_row.iloc[4])
+                "rows": all_rows_data
             }
             res = requests.post(WEBAPP_URL, json=payload)
-            print(f"✅ Data pushed for {date_str}")
+            print(f"✅ Full Data pushed for {date_str}")
             return True
-        elif response.status_code == 404:
-            print(f"⚪ 404: No data found for {date_str}")
-            return False
+        return False
     except Exception as e:
         print(f"⚠️ Error: {e}")
         return False
 
 def run_automation():
     today_str = datetime.now().strftime("%Y-%m-%d")
-    weekday = datetime.now().weekday()
-
     if MODE == 'DAILY':
-        # TRIPLE SECURITY CHECK
-        # 1. Weekend Check (Sat/Sun)
-        # 2. Holiday Check (NSE Calendar)
-        if weekday >= 5 or today_str in NSE_HOLIDAYS:
-            print(f"🛑 Market is Closed today ({today_str}). No requests sent to NSE.")
+        if datetime.now().weekday() >= 5 or today_str in NSE_HOLIDAYS:
             return
-        
-        print(f"🚀 Starting Daily Run for {today_str}...")
         for attempt in range(6):
             if fetch_and_send(datetime.now()): break
-            print("NSE data not ready. Retrying in 10 mins...")
             time.sleep(600)
-    
     elif MODE == 'HISTORICAL':
-        # Historical mode mein koi rok-tok nahi, taaki aap chutti mein data bhar sakein
-        print(f"📂 Starting Historical Fetch: {START_DATE} to {END_DATE}")
         curr = datetime.strptime(START_DATE, "%Y-%m-%d")
         end = datetime.strptime(END_DATE, "%Y-%m-%d")
         while curr <= end:
-            # Historical mein robot weekends/holidays ko skip nahi karega, 
-            # bas file check karega (404 aane par safe skip karega)
             fetch_and_send(curr)
             time.sleep(2) 
             curr += timedelta(days=1)
