@@ -10,7 +10,7 @@ WEBAPP_URL = os.environ['GOOGLE_WEBAPP_URL']
 TOKEN = os.environ['SECRET_TOKEN']
 
 # --- CONFIGURATION ---
-MODE = 'HISTORICAL'  # 'HISTORICAL' या 'DAILY'
+MODE = 'HISTORICAL'  # पुराना डेटा भरने के लिए 'HISTORICAL' रखें, डेली के लिए 'DAILY'
 START_DATE = "2026-04-01" 
 END_DATE = "2026-04-30"
 
@@ -25,15 +25,21 @@ def fetch_and_send(target_date):
     try:
         response = requests.get(url, headers=headers, timeout=15)
         if response.status_code == 200:
-            # skiprows=1 ताकि 'Participant wise' वाली पहली लाइन हट जाए और हेडर से डेटा शुरू हो
+            # NSE की फाइल से हेडर और डेटा उठाना
             df = pd.read_csv(StringIO(response.text), skiprows=1)
+            df.columns = df.columns.str.strip()
             
-            # पूरी टेबल को लिस्ट में बदलना (बिना किसी कॉलम लिमिट के)
+            header_list = df.columns.tolist()
             all_data = df.values.tolist()
             
-            payload = {"token": TOKEN, "date": target_date.strftime("%Y-%m-%d"), "rows": all_data}
+            payload = {
+                "token": TOKEN, 
+                "date": target_date.strftime("%Y-%m-%d"), 
+                "headers": header_list,
+                "rows": all_data
+            }
             requests.post(WEBAPP_URL, json=payload)
-            print(f"✅ Full table for {date_str} sent.")
+            print(f"✅ Full Data for {date_str} sent with Colors.")
             return True
         return False
     except: return False
