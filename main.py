@@ -10,7 +10,7 @@ WEBAPP_URL = os.environ['GOOGLE_WEBAPP_URL']
 TOKEN = os.environ['SECRET_TOKEN']
 
 # --- CONFIGURATION ---
-MODE = 'HISTORICAL'  # पुराना डेटा भरने के लिए 'HISTORICAL' रखें, डेली के लिए 'DAILY'
+MODE = 'DAILY'  # पुराना डेटा भरने के लिए 'HISTORICAL' रखें, डेली के लिए 'DAILY'
 START_DATE = "2026-03-01" 
 END_DATE = "2026-03-31"
 
