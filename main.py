@@ -9,12 +9,12 @@ from datetime import datetime, timedelta
 WEBAPP_URL = os.environ['GOOGLE_WEBAPP_URL']
 TOKEN = os.environ['SECRET_TOKEN']
 
-# --- CONFIGURATION ---
-MODE = 'DAILY' 
+# --- CONFIGURATION (Bhai, yahan dhyan dein) ---
+MODE = 'HISTORICAL' # 'DAILY' karne se pehle ise 'HISTORICAL' hi rehne dein
 START_DATE = "2026-04-01"
 END_DATE = "2026-04-30"
 
-# NSE Holiday List 2026 (As per your image)
+# NSE Holiday List 2026 (Strictly as per your image_56)
 NSE_HOLIDAYS = ["2026-01-15", "2026-01-26", "2026-03-03", "2026-03-26", "2026-03-31", "2026-04-03", "2026-04-14", "2026-05-01", "2026-05-28", "2026-06-26", "2026-09-14", "2026-10-02", "2026-10-20", "2026-11-10", "2026-11-24", "2026-12-25"]
 
 def fetch_and_send(target_date):
@@ -27,13 +27,11 @@ def fetch_and_send(target_date):
         response = requests.get(url, headers=headers, timeout=15)
         if response.status_code == 200:
             df = pd.read_csv(StringIO(response.text))
-            
-            # Charon participants ki list
             participants = ['Client', 'DII', 'FII', 'Pro']
             all_rows_data = []
 
             for p in participants:
-                # Row find karna aur columns extract karna (Index specific)
+                # Sabhi 4 categories ka data nikalna
                 row = df[df.iloc[:, 0].str.strip() == p].iloc[0]
                 all_rows_data.append({
                     "client_type": p,
@@ -45,34 +43,33 @@ def fetch_and_send(target_date):
                     "opt_put_short": int(row.iloc[8])
                 })
             
-            # Pura data ek sath bhejna
-            payload = {
-                "token": TOKEN,
-                "date": target_date.strftime("%Y-%m-%d"),
-                "rows": all_rows_data
-            }
-            res = requests.post(WEBAPP_URL, json=payload)
-            print(f"✅ Full Data pushed for {date_str}")
+            payload = {"token": TOKEN, "date": target_date.strftime("%Y-%m-%d"), "rows": all_rows_data}
+            requests.post(WEBAPP_URL, json=payload)
+            print(f"✅ Data pushed for {date_str}")
             return True
-        return False
+        else:
+            print(f"⚪ No data for {date_str} (404)")
+            return False
     except Exception as e:
-        print(f"⚠️ Error: {e}")
+        print(f"⚠️ Error for {date_str}: {e}")
         return False
 
 def run_automation():
-    today_str = datetime.now().strftime("%Y-%m-%d")
+    # 0s wala issue fix karne ke liye logic
     if MODE == 'HISTORICAL':
+        today_str = datetime.now().strftime("%Y-%m-%d")
         if datetime.now().weekday() >= 5 or today_str in NSE_HOLIDAYS:
+            print("Market Closed. No data to fetch.")
             return
-        for attempt in range(6):
-            if fetch_and_send(datetime.now()): break
-            time.sleep(600)
+        fetch_and_send(datetime.now())
+    
     elif MODE == 'HISTORICAL':
+        print(f"🚀 Running Historical for {START_DATE} to {END_DATE}")
         curr = datetime.strptime(START_DATE, "2026-04-01")
         end = datetime.strptime(END_DATE, "2026-04-30")
         while curr <= end:
             fetch_and_send(curr)
-            time.sleep(2) 
+            time.sleep(2)
             curr += timedelta(days=1)
 
 if __name__ == "__main__":
