@@ -12,7 +12,7 @@ TOKEN = os.environ['SECRET_TOKEN']
 # --- CONFIGURATION ---
 # 'DAILY' = Rozana automation (7:30 PM trigger)
 # 'HISTORICAL' = Purana data (12 din mein 12 mahine)
-MODE = 'DAILY' 
+MODE = 'HISTORICAL' 
 
 # Agar MODE 'HISTORICAL' hai, toh yahan Dates badlein (YYYY-MM-DD)
 START_DATE = "2026-04-01"
