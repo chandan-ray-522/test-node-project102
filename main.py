@@ -61,15 +61,15 @@ def fetch_and_send(target_date):
 
 def run_automation():
     today_str = datetime.now().strftime("%Y-%m-%d")
-    if MODE == 'DAILY':
+    if MODE == 'HISTORICAL':
         if datetime.now().weekday() >= 5 or today_str in NSE_HOLIDAYS:
             return
         for attempt in range(6):
             if fetch_and_send(datetime.now()): break
             time.sleep(600)
     elif MODE == 'HISTORICAL':
-        curr = datetime.strptime(START_DATE, "%Y-%m-%d")
-        end = datetime.strptime(END_DATE, "%Y-%m-%d")
+        curr = datetime.strptime(START_DATE, "2026-04-01")
+        end = datetime.strptime(END_DATE, "2026-04-30")
         while curr <= end:
             fetch_and_send(curr)
             time.sleep(2) 
